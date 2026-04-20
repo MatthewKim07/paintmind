@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useEffect } from 'react'
 import { DrawingEnvironment } from '../env/drawing'
 import type { CircleAction } from '../env/types'
 import type { AgentEnv } from '../agent/types'
@@ -14,14 +14,21 @@ export type AgentLoopState = {
 
 export function useAgentLoop(targetPixels: Uint8ClampedArray, width: number, height: number) {
   const envRef = useRef(new DrawingEnvironment(width, height))
+  const prevTargetRef = useRef(targetPixels)
 
-  const initialPixels = envRef.current.snapshot()
-  const [state, setState] = useState<AgentLoopState>({
-    step: 0,
-    mse: computeMSE(initialPixels, targetPixels),
-    pixels: initialPixels,
-    lastAction: null,
+  const [state, setState] = useState<AgentLoopState>(() => {
+    const pixels = envRef.current.snapshot()
+    return { step: 0, mse: computeMSE(pixels, targetPixels), pixels, lastAction: null }
   })
+
+  // Reset drawing env and state whenever the target image changes
+  useEffect(() => {
+    if (prevTargetRef.current === targetPixels) return
+    prevTargetRef.current = targetPixels
+    envRef.current.reset()
+    const pixels = envRef.current.snapshot()
+    setState({ step: 0, mse: computeMSE(pixels, targetPixels), pixels, lastAction: null })
+  }, [targetPixels])
 
   const step = useCallback(() => {
     const env = envRef.current
