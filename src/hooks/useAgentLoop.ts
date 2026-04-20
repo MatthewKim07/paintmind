@@ -10,27 +10,83 @@ export type AgentLoopState = {
   mse: number
   pixels: Uint8ClampedArray
   lastAction: CircleAction | null
+  mseHistory: number[]
+  isRunning: boolean
+  done: boolean
 }
 
-export function useAgentLoop(targetPixels: Uint8ClampedArray, width: number, height: number) {
+export type AgentLoopOptions = {
+  maxSteps?: number
+  mseThreshold?: number
+  intervalMs?: number
+}
+
+function makeInitialState(
+  env: DrawingEnvironment,
+  targetPixels: Uint8ClampedArray,
+): AgentLoopState {
+  const pixels = env.snapshot()
+  return {
+    step: 0,
+    mse: computeMSE(pixels, targetPixels),
+    pixels,
+    lastAction: null,
+    mseHistory: [],
+    isRunning: false,
+    done: false,
+  }
+}
+
+export function useAgentLoop(
+  targetPixels: Uint8ClampedArray,
+  width: number,
+  height: number,
+  options: AgentLoopOptions = {},
+) {
+  const { maxSteps = 200, mseThreshold = 0.001, intervalMs = 100 } = options
+
   const envRef = useRef(new DrawingEnvironment(width, height))
   const prevTargetRef = useRef(targetPixels)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Shadow refs — always current, safe to read inside setInterval without stale closure
+  const stepRef = useRef(0)
+  const mseRef = useRef(0)
+  const isRunningRef = useRef(false)
 
   const [state, setState] = useState<AgentLoopState>(() => {
-    const pixels = envRef.current.snapshot()
-    return { step: 0, mse: computeMSE(pixels, targetPixels), pixels, lastAction: null }
+    const s = makeInitialState(envRef.current, targetPixels)
+    mseRef.current = s.mse
+    return s
   })
 
-  // Reset drawing env and state whenever the target image changes
+  // Clear interval on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [])
+
+  // Reset everything when the target image changes
   useEffect(() => {
     if (prevTargetRef.current === targetPixels) return
     prevTargetRef.current = targetPixels
+
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+    isRunningRef.current = false
+    stepRef.current = 0
+
     envRef.current.reset()
-    const pixels = envRef.current.snapshot()
-    setState({ step: 0, mse: computeMSE(pixels, targetPixels), pixels, lastAction: null })
+    const s = makeInitialState(envRef.current, targetPixels)
+    mseRef.current = s.mse
+    setState(s)
   }, [targetPixels])
 
-  const step = useCallback(() => {
+  // Core step logic — shared by manual step() and auto-run interval
+  const executeStep = useCallback(() => {
     const env = envRef.current
     const agentEnv: AgentEnv = {
       width: env.width,
@@ -46,24 +102,67 @@ export function useAgentLoop(targetPixels: Uint8ClampedArray, width: number, hei
     const newPixels = env.snapshot()
     const newMSE = computeMSE(newPixels, targetPixels)
 
+    stepRef.current += 1
+    mseRef.current = newMSE
+
     setState((prev) => ({
-      step: prev.step + 1,
+      ...prev,
+      step: stepRef.current,
       mse: newMSE,
       pixels: newPixels,
       lastAction: action,
+      mseHistory: [...prev.mseHistory, newMSE],
     }))
   }, [targetPixels])
 
+  // Manual single step — blocked during auto-run
+  const step = useCallback(() => {
+    if (isRunningRef.current) return
+    executeStep()
+  }, [executeStep])
+
+  const run = useCallback(() => {
+    if (isRunningRef.current) return
+    // Don't start if already at a terminal condition
+    if (stepRef.current >= maxSteps || mseRef.current < mseThreshold) return
+
+    isRunningRef.current = true
+    setState((prev) => ({ ...prev, isRunning: true, done: false }))
+
+    intervalRef.current = setInterval(() => {
+      // Stopping conditions read from refs — never stale
+      if (stepRef.current >= maxSteps || mseRef.current < mseThreshold) {
+        clearInterval(intervalRef.current!)
+        intervalRef.current = null
+        isRunningRef.current = false
+        setState((prev) => ({ ...prev, isRunning: false, done: true }))
+        return
+      }
+      executeStep()
+    }, intervalMs)
+  }, [executeStep, maxSteps, mseThreshold, intervalMs])
+
+  const pause = useCallback(() => {
+    if (!isRunningRef.current) return
+    clearInterval(intervalRef.current!)
+    intervalRef.current = null
+    isRunningRef.current = false
+    setState((prev) => ({ ...prev, isRunning: false }))
+  }, [])
+
   const reset = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+    isRunningRef.current = false
+    stepRef.current = 0
+
     envRef.current.reset()
-    const pixels = envRef.current.snapshot()
-    setState({
-      step: 0,
-      mse: computeMSE(pixels, targetPixels),
-      pixels,
-      lastAction: null,
-    })
+    const s = makeInitialState(envRef.current, targetPixels)
+    mseRef.current = s.mse
+    setState(s)
   }, [targetPixels])
 
-  return { state, step, reset }
+  return { state, step, run, pause, reset }
 }

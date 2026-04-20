@@ -5,15 +5,21 @@ import { useImageUpload } from './hooks/useImageUpload'
 const WIDTH = 96
 const HEIGHT = 96
 const SCALE = 4
+const MAX_STEPS = 200
 
 type PaintingSessionProps = {
   targetPixels: Uint8ClampedArray
 }
 
 function PaintingSession({ targetPixels }: PaintingSessionProps) {
-  const { state, step, reset } = useAgentLoop(targetPixels, WIDTH, HEIGHT)
+  const { state, step, run, pause, reset } = useAgentLoop(
+    targetPixels, WIDTH, HEIGHT,
+    { maxSteps: MAX_STEPS, mseThreshold: 0.001, intervalMs: 100 },
+  )
   const paintingRef = useCanvas(state.pixels, WIDTH, HEIGHT, SCALE)
-  const targetRef = useCanvas(targetPixels, WIDTH, HEIGHT, SCALE)
+  const targetRef   = useCanvas(targetPixels,  WIDTH, HEIGHT, SCALE)
+
+  const canRun = !state.isRunning && !state.done && state.step < MAX_STEPS
 
   return (
     <>
@@ -29,8 +35,11 @@ function PaintingSession({ targetPixels }: PaintingSessionProps) {
       </div>
 
       <div style={{ marginBottom: 12 }}>
-        <strong>step</strong> {state.step}&emsp;
+        <strong>step</strong> {state.step} / {MAX_STEPS}&emsp;
         <strong>MSE</strong> {state.mse.toFixed(6)}
+        {state.done && (
+          <span style={{ marginLeft: 12, color: '#080', fontWeight: 'bold' }}>done</span>
+        )}
       </div>
 
       {state.lastAction && (
@@ -42,8 +51,19 @@ function PaintingSession({ targetPixels }: PaintingSessionProps) {
       )}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={step} style={{ padding: '6px 16px', cursor: 'pointer' }}>
+        <button
+          onClick={step}
+          disabled={state.isRunning || state.done}
+          style={{ padding: '6px 16px', cursor: 'pointer' }}
+        >
           Step
+        </button>
+        <button
+          onClick={state.isRunning ? pause : run}
+          disabled={!state.isRunning && !canRun}
+          style={{ padding: '6px 16px', cursor: 'pointer' }}
+        >
+          {state.isRunning ? 'Pause' : 'Run'}
         </button>
         <button onClick={reset} style={{ padding: '6px 16px', cursor: 'pointer' }}>
           Reset
