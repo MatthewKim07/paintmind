@@ -5,7 +5,7 @@ import { useImageUpload } from './hooks/useImageUpload'
 const WIDTH = 96
 const HEIGHT = 96
 const SCALE = 4
-const MAX_STEPS = 200
+const MAX_STEPS = 1000
 
 type PaintingSessionProps = {
   targetPixels: Uint8ClampedArray
