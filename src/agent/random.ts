@@ -75,17 +75,16 @@ function optimalGray(
   return Math.max(0, Math.min(255, Math.round(g)))
 }
 
-const RADIUS_MAX_START = 0.25  // fraction of canvas short-side at step 0
-const RADIUS_MAX_END   = 2     // absolute pixel value at step maxSteps
+const RADIUS_LARGE = 0.25  // fraction of short side at progress=0 (e.g. 24px on a 96px canvas)
 
 export function getNextAction(env: AgentEnv): CircleAction {
   const { width, height, targetPixels, progress } = env
   const shortSide = Math.min(width, height)
-  // Linearly interpolate max radius from large (early) to small (late)
-  const maxRadius = Math.max(
-    RADIUS_MAX_END,
-    Math.round(shortSide * RADIUS_MAX_START * (1 - progress) + RADIUS_MAX_END * progress),
-  )
+  // Quadratic decay: drops quickly through mid-steps, reaches 1px by progress=1.
+  // Formula: (large - 1) * (1 - progress)^2 + 1
+  // At progress=0 → large; progress=0.5 → ~7; progress=0.75 → ~3; progress=1 → 1
+  const large = Math.floor(shortSide * RADIUS_LARGE)
+  const maxRadius = Math.max(1, Math.round((large - 1) * (1 - progress) ** 2 + 1))
 
   const currentPixels = env.snapshot()
   const errorCDF = buildErrorCDF(currentPixels, targetPixels)
