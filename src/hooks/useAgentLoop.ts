@@ -92,6 +92,7 @@ export function useAgentLoop(
       width: env.width,
       height: env.height,
       targetPixels,
+      progress: Math.min(1, stepRef.current / maxSteps),
       apply: (a) => env.apply(a),
       snapshot: () => env.snapshot(),
       restore: (s) => env.restore(s),
@@ -113,7 +114,7 @@ export function useAgentLoop(
       lastAction: action,
       mseHistory: [...prev.mseHistory, newMSE],
     }))
-  }, [targetPixels])
+  }, [targetPixels, maxSteps])
 
   // Manual single step — blocked during auto-run
   const step = useCallback(() => {

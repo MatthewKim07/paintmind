@@ -75,9 +75,17 @@ function optimalGray(
   return Math.max(0, Math.min(255, Math.round(g)))
 }
 
+const RADIUS_MAX_START = 0.25  // fraction of canvas short-side at step 0
+const RADIUS_MAX_END   = 2     // absolute pixel value at step maxSteps
+
 export function getNextAction(env: AgentEnv): CircleAction {
-  const { width, height, targetPixels } = env
-  const maxRadius = Math.floor(Math.min(width, height) / 4)
+  const { width, height, targetPixels, progress } = env
+  const shortSide = Math.min(width, height)
+  // Linearly interpolate max radius from large (early) to small (late)
+  const maxRadius = Math.max(
+    RADIUS_MAX_END,
+    Math.round(shortSide * RADIUS_MAX_START * (1 - progress) + RADIUS_MAX_END * progress),
+  )
 
   const currentPixels = env.snapshot()
   const errorCDF = buildErrorCDF(currentPixels, targetPixels)
