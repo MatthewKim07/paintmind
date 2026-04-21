@@ -1,4 +1,4 @@
-import type { CircleAction } from './types'
+import type { CircleAction, RectAction, DrawingAction } from './types'
 
 export class DrawingEnvironment {
   private pixels: Uint8ClampedArray
@@ -11,7 +11,15 @@ export class DrawingEnvironment {
     this.pixels = new Uint8ClampedArray(width * height).fill(255)
   }
 
-  apply(action: CircleAction): void {
+  apply(action: DrawingAction): void {
+    if ('radius' in action) {
+      this.applyCircle(action)
+    } else {
+      this.applyRect(action)
+    }
+  }
+
+  private applyCircle(action: CircleAction): void {
     const { x, y, radius, opacity, gray } = action
     const xMin = Math.max(0, Math.floor(x - radius))
     const xMax = Math.min(this.width - 1, Math.ceil(x + radius))
@@ -25,6 +33,21 @@ export class DrawingEnvironment {
           const idx = py * this.width + px
           this.pixels[idx] = Math.round(this.pixels[idx] * (1 - opacity) + gray * opacity)
         }
+      }
+    }
+  }
+
+  private applyRect(action: RectAction): void {
+    const { x, y, w, h, opacity, gray } = action
+    const xMin = Math.max(0, Math.round(x - w))
+    const xMax = Math.min(this.width - 1, Math.round(x + w))
+    const yMin = Math.max(0, Math.round(y - h))
+    const yMax = Math.min(this.height - 1, Math.round(y + h))
+
+    for (let py = yMin; py <= yMax; py++) {
+      for (let px = xMin; px <= xMax; px++) {
+        const idx = py * this.width + px
+        this.pixels[idx] = Math.round(this.pixels[idx] * (1 - opacity) + gray * opacity)
       }
     }
   }

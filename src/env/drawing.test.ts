@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { DrawingEnvironment } from './drawing'
+import type { RectAction } from './types'
 
 describe('DrawingEnvironment', () => {
   let env: DrawingEnvironment
@@ -85,5 +86,66 @@ describe('DrawingEnvironment', () => {
     env.apply({ x: 5, y: 5, radius: 1, opacity: 0.5, gray: 0 })
     // after second: 128 * 0.5 + 0 * 0.5 = 64
     expect(env.snapshot()[5 * 10 + 5]).toBe(64)
+  })
+})
+
+describe('DrawingEnvironment — rect actions', () => {
+  let env: DrawingEnvironment
+
+  beforeEach(() => {
+    env = new DrawingEnvironment(10, 10)
+  })
+
+  const rect = (overrides: Partial<RectAction> = {}): RectAction => ({
+    x: 5, y: 5, w: 2, h: 2, opacity: 1, gray: 0, ...overrides,
+  })
+
+  it('paints all pixels inside the bounding box', () => {
+    env.apply(rect({ x: 5, y: 5, w: 1, h: 1, opacity: 1, gray: 0 }))
+    const pixels = env.snapshot()
+    // bounding box: x in [4,6], y in [4,6] — 3×3 = 9 pixels all black
+    for (let py = 4; py <= 6; py++) {
+      for (let px = 4; px <= 6; px++) {
+        expect(pixels[py * 10 + px]).toBe(0)
+      }
+    }
+  })
+
+  it('leaves pixels outside the bounding box untouched', () => {
+    env.apply(rect({ x: 5, y: 5, w: 1, h: 1, opacity: 1, gray: 0 }))
+    expect(env.snapshot()[0 * 10 + 0]).toBe(255)
+  })
+
+  it('opacity blends correctly: gray=0, opacity=0.5 on white → 128', () => {
+    env.apply(rect({ x: 5, y: 5, w: 1, h: 1, opacity: 0.5, gray: 0 }))
+    expect(env.snapshot()[5 * 10 + 5]).toBe(128)
+  })
+
+  it('clips to canvas bounds without throwing', () => {
+    expect(() => env.apply(rect({ x: 0, y: 0, w: 8, h: 8 }))).not.toThrow()
+    expect(() => env.apply(rect({ x: 9, y: 9, w: 8, h: 8 }))).not.toThrow()
+  })
+
+  it('larger w and h paints more pixels than smaller', () => {
+    const envA = new DrawingEnvironment(10, 10)
+    const envB = new DrawingEnvironment(10, 10)
+    envA.apply(rect({ x: 5, y: 5, w: 1, h: 1 }))
+    envB.apply(rect({ x: 5, y: 5, w: 3, h: 3 }))
+    const paintedA = Array.from(envA.snapshot()).filter(v => v < 255).length
+    const paintedB = Array.from(envB.snapshot()).filter(v => v < 255).length
+    expect(paintedB).toBeGreaterThan(paintedA)
+  })
+
+  it('reset clears a rect-painted canvas to white', () => {
+    env.apply(rect())
+    env.reset()
+    expect(env.snapshot().every(v => v === 255)).toBe(true)
+  })
+
+  it('restore reverts after a rect apply', () => {
+    const before = env.snapshot()
+    env.apply(rect())
+    env.restore(before)
+    expect(env.snapshot()).toEqual(before)
   })
 })

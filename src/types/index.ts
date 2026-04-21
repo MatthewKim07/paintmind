@@ -1,1 +1,1 @@
-export type { CircleAction } from '../env/types'
+export type { CircleAction, RectAction, DrawingAction } from '../env/types'
