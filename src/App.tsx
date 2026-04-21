@@ -44,9 +44,10 @@ function PaintingSession({ targetPixels }: PaintingSessionProps) {
 
       {state.lastAction && (
         <div style={{ fontSize: 11, color: '#888', marginBottom: 12 }}>
-          last &mdash; x:{state.lastAction.x} y:{state.lastAction.y}{' '}
-          r:{state.lastAction.radius} op:{state.lastAction.opacity.toFixed(2)}{' '}
-          gray:{state.lastAction.gray}
+          {'radius' in state.lastAction
+            ? `circle — x:${state.lastAction.x} y:${state.lastAction.y} r:${state.lastAction.radius} op:${state.lastAction.opacity.toFixed(2)} gray:${state.lastAction.gray}`
+            : `rect — x:${state.lastAction.x} y:${state.lastAction.y} w:${state.lastAction.w} h:${state.lastAction.h} op:${state.lastAction.opacity.toFixed(2)} gray:${state.lastAction.gray}`
+          }
         </div>
       )}
 

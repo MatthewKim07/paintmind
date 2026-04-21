@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { DrawingEnvironment } from '../env/drawing'
-import type { CircleAction } from '../env/types'
+import type { DrawingAction } from '../env/types'
 import type { AgentEnv } from '../agent/types'
 import { getNextAction } from '../agent'
 import { computeMSE } from '../scoring/mse'
@@ -9,7 +9,7 @@ export type AgentLoopState = {
   step: number
   mse: number
   pixels: Uint8ClampedArray
-  lastAction: CircleAction | null
+  lastAction: DrawingAction | null
   mseHistory: number[]
   isRunning: boolean
   done: boolean
