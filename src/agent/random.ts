@@ -11,12 +11,18 @@ function randomInt(min: number, max: number): number {
 /**
  * Build a cumulative distribution function (CDF) over per-pixel absolute error.
  * Sampling an index from this CDF biases primitive centers toward high-error regions.
+ * If a prior error map is provided (from a previous run), it is blended in at half weight
+ * so that historically hard regions receive extra sampling probability.
  */
-function buildErrorCDF(current: Uint8ClampedArray, target: Uint8ClampedArray): Float32Array {
+function buildErrorCDF(
+  current: Uint8ClampedArray,
+  target: Uint8ClampedArray,
+  prior: Uint8ClampedArray | null,
+): Float32Array {
   const cdf = new Float32Array(current.length)
   let running = 0
   for (let i = 0; i < current.length; i++) {
-    running += Math.abs(target[i] - current[i])
+    running += Math.abs(target[i] - current[i]) + (prior ? prior[i] * 0.5 : 0)
     cdf[i] = running
   }
   // Canvas already matches target — fall back to uniform distribution
@@ -115,7 +121,7 @@ export function getNextAction(env: AgentEnv): DrawingAction {
   const maxExtent = Math.max(1, Math.round((large - 1) * (1 - progress) ** 2 + 1))
 
   const currentPixels = env.snapshot()
-  const errorCDF = buildErrorCDF(currentPixels, targetPixels)
+  const errorCDF = buildErrorCDF(currentPixels, targetPixels, env.priorErrorMap)
 
   let bestAction!: DrawingAction
   let bestMSE = Infinity
