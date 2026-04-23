@@ -1,6 +1,16 @@
-# PaintMind
+<div align="center">
+
+# 🎨 PaintMind
 
 An optimization-based AI agent that reconstructs images step-by-step using circles and rectangles. After each run, it records where it failed and uses that signal to guide sampling in the next run — converging faster over time without any learned parameters.
+
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-6-646CFF?style=flat&logo=vite&logoColor=white)
+![Vitest](https://img.shields.io/badge/Tested_with-Vitest-6E9F18?style=flat&logo=vitest&logoColor=white)
+![No Backend](https://img.shields.io/badge/Backend-None-lightgrey?style=flat)
+
+</div>
 
 ---
 
@@ -12,7 +22,7 @@ An optimization-based AI agent that reconstructs images step-by-step using circl
 
 ---
 
-## Core Idea
+## 💡 Core Idea
 
 PaintMind frames image reconstruction as a **search and optimization problem**.
 
@@ -31,7 +41,7 @@ There are no neural networks, no training data, and no pre-trained weights. Ever
 
 ---
 
-## How It Works
+## ⚙️ How It Works
 
 ### Per-Step Loop
 
@@ -64,7 +74,7 @@ Early steps use large shapes to establish rough structure. Later steps use small
 
 ---
 
-## Learning Across Runs
+## 🧠 Learning Across Runs
 
 After each run, PaintMind captures a **residual error heatmap** — the pixel-wise difference between the final painting and the target. On the next run, this map is blended into the sampling weights:
 
@@ -76,15 +86,15 @@ Pixels that were hard to reconstruct last time receive higher sampling probabili
 
 ---
 
-## Results
+## 📊 Results
 
 Three consecutive runs on the same 96×96 grayscale image (1000-step budget, MSE threshold 0.001):
 
 | Run | Steps to completion | Final MSE |
 |-----|---------------------|-----------|
 | 1   | 480                 | 0.000924  |
-| 2   | 421                 | 0.000998  |
-| 3   | 427                 | 0.000996  |
+| 2   | 421 ↓ 12%           | 0.000998  |
+| 3   | 427 ↓ 11%           | 0.000996  |
 
 Run 2 converged ~12% faster than Run 1. Final MSE fluctuated slightly across runs — Run 2 and 3 were marginally worse than Run 1 despite converging sooner.
 
@@ -92,7 +102,7 @@ This reflects a real tradeoff: the heatmap bias can accelerate convergence but a
 
 ---
 
-## Why Results Vary Across Runs
+## 🔍 Why Results Vary Across Runs
 
 PaintMind uses **stochastic search** — candidate positions are sampled randomly, weighted by error. This means two runs on the same image will follow different paths and can end at different local minima.
 
@@ -107,7 +117,7 @@ In practice: convergence speed tends to improve modestly across runs; final MSE 
 
 ---
 
-## Visualization
+## 📈 Visualization
 
 ### MSE Curve
 
@@ -124,7 +134,7 @@ The comparison baseline is locked at Reset time and does not update until the ne
 
 ---
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 | Layer | Choice |
 |---|---|
@@ -139,7 +149,7 @@ The comparison baseline is locked at Reset time and does not update until the ne
 
 ---
 
-## Why This Project Matters
+## 🎯 Why This Project Matters
 
 PaintMind is a study in building AI systems that are **interpretable by construction**. Every decision the agent makes is a single primitive chosen by direct MSE comparison — no black box, no embeddings, no latent space.
 
@@ -152,7 +162,7 @@ A few things this project demonstrates practically:
 
 ---
 
-## Key Insights
+## 🔑 Key Insights
 
 - **Analytical color selection** eliminates one search dimension, making candidate evaluation cheap enough to run 50 candidates per step in real time
 - **Error-biased CDF sampling** outperforms uniform random sampling — focusing candidates on high-error regions accelerates early convergence
@@ -162,7 +172,7 @@ A few things this project demonstrates practically:
 
 ---
 
-## Future Improvements
+## 🔭 Future Improvements
 
 - **Color support** — extend from grayscale to RGB with per-channel optimal color
 - **Rotated rectangles and triangles** — broaden the primitive vocabulary for angled edges
@@ -173,7 +183,7 @@ A few things this project demonstrates practically:
 
 ---
 
-## Getting Started
+## 🚀 Getting Started
 
 **Requirements:** Node.js 18+
 
@@ -192,7 +202,7 @@ Open `http://localhost:5173`, upload an image, and click **Run**.
 
 ---
 
-## Author
+## 👤 Author
 
 **Matthew Kim**
 [matthewminchulkim@gmail.com](mailto:matthewminchulkim@gmail.com) · [GitHub](https://github.com/matthewkim)
