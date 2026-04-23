@@ -1,4 +1,5 @@
 import { useAgentLoop } from './hooks/useAgentLoop'
+import type { RunStats } from './hooks/useAgentLoop'
 import { useCanvas } from './hooks/useCanvas'
 import { useImageUpload } from './hooks/useImageUpload'
 
@@ -6,6 +7,81 @@ const WIDTH = 96
 const HEIGHT = 96
 const SCALE = 4
 const MAX_STEPS = 1000
+
+const CHART_W = 300
+const CHART_H = 80
+
+function MSEChart({ current, prev }: { current: number[]; prev: RunStats | null }) {
+  if (current.length < 2 && (!prev || prev.mseHistory.length < 2)) return null
+
+  const allValues = [...current, ...(prev ? prev.mseHistory : [])]
+  const maxVal = Math.max(...allValues, 0.001)
+
+  function toPoints(history: number[]): string {
+    if (history.length < 2) return ''
+    return history
+      .map((v, i) => {
+        const x = (i / (history.length - 1)) * CHART_W
+        const y = CHART_H - (v / maxVal) * CHART_H
+        return `${x.toFixed(1)},${y.toFixed(1)}`
+      })
+      .join(' ')
+  }
+
+  return (
+    <svg
+      width={CHART_W}
+      height={CHART_H}
+      style={{ display: 'block', border: '1px solid #ddd', background: '#fafafa', marginBottom: 12 }}
+    >
+      {prev && prev.mseHistory.length >= 2 && (
+        <polyline points={toPoints(prev.mseHistory)} fill="none" stroke="#bbb" strokeWidth={1.5} />
+      )}
+      {current.length >= 2 && (
+        <polyline points={toPoints(current)} fill="none" stroke="#444" strokeWidth={1.5} />
+      )}
+    </svg>
+  )
+}
+
+function RunComparison({ prev, current }: { prev: RunStats; current: { steps: number; mse: number } }) {
+  const stepDelta = prev.steps - current.steps
+  const mseDelta = prev.finalMSE - current.mse
+
+  return (
+    <div style={{ fontSize: 11, color: '#666', marginBottom: 12, lineHeight: 1.8 }}>
+      <div style={{ fontWeight: 'bold', marginBottom: 2 }}>run comparison</div>
+      <div>
+        steps&emsp;
+        <span style={{ color: '#888' }}>prev {prev.steps}</span>
+        {current.steps > 0 && (
+          <>
+            &ensp;→&ensp;<span style={{ color: '#444' }}>now {current.steps}</span>
+            {stepDelta !== 0 && (
+              <span style={{ color: stepDelta > 0 ? '#080' : '#c00', marginLeft: 4 }}>
+                ({stepDelta > 0 ? `−${stepDelta}` : `+${Math.abs(stepDelta)}`} steps)
+              </span>
+            )}
+          </>
+        )}
+      </div>
+      <div>
+        final MSE&emsp;
+        <span style={{ color: '#888' }}>prev {prev.finalMSE.toFixed(6)}</span>
+        {current.steps > 0 && (
+          <>
+            &ensp;→&ensp;<span style={{ color: '#444' }}>now {current.mse.toFixed(6)}</span>
+            {mseDelta !== 0 && (
+              <span style={{ color: mseDelta > 0 ? '#080' : '#c00', marginLeft: 4 }}>
+                ({mseDelta > 0 ? '↓' : '↑'}{Math.abs(mseDelta).toFixed(6)})
+              </span>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 
 type PaintingSessionProps = {
   targetPixels: Uint8ClampedArray
@@ -49,6 +125,15 @@ function PaintingSession({ targetPixels }: PaintingSessionProps) {
             : `rect — x:${state.lastAction.x} y:${state.lastAction.y} w:${state.lastAction.w} h:${state.lastAction.h} op:${state.lastAction.opacity.toFixed(2)} gray:${state.lastAction.gray}`
           }
         </div>
+      )}
+
+      <MSEChart current={state.mseHistory} prev={state.prevRunStats} />
+
+      {state.prevRunStats && state.step > 0 && (
+        <RunComparison
+          prev={state.prevRunStats}
+          current={{ steps: state.step, mse: state.mse }}
+        />
       )}
 
       <div style={{ display: 'flex', gap: 8 }}>
